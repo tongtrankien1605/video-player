@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="vi">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Video Player - code base</title>
+        <style>
+            body {
+                margin: 0;
+                padding: 0;
+                overflow: hidden;
+                background: #000;
+                font-family: Arial, sans-serif;
+            }
+            .video-container {
+                position: relative;
+                width: 100vw;
+                height: 86vh;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+            video {
+                width: 98%;
+                max-height: 95vh;
+                object-fit: contain;
+            }
+            .video-title {
+                position: absolute;
+                top: 20px;
+                left: 20px;
+                color: #fff;
+                font-size: 18px;
+                font-weight: 700;
+                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+                max-width: 80%;
+                word-wrap: break-word;
+                z-index: 5;
+            }
+            .speed-controls {
+                position: absolute;
+                top: 50%;
+                left: 20px;
+                transform: translateY(-50%);
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                align-items: flex-start;
+                z-index: 5;
+            }
+            .speed-controls button {
+                background: rgba(0, 0, 0, 0.5);
+                border: none;
+                color: #fff;
+                padding: 8px 12px;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 14px;
+                opacity: 0.3;
+            }
+            .speed-controls button:hover {
+                background: rgba(0, 0, 0, 0.8);
+                opacity: 0.8;
+            }
+            .speed-controls button.active {
+                background: rgba(255, 255, 255, 0.3);
+                opacity: 0.8;
+            }
+            .speed-controls .skip-button {
+                font-size: 18px;
+                padding: 8px 12px;
+                border-radius: 12px;
+            }
+            .speed-controls .gear-button {
+                font-size: 18px;
+                padding: 8px 12px;
+                border-radius: 8px;
+            }
+            .speed-controls .random-button {
+                font-size: 16px;
+                padding: 8px 12px;
+                border-radius: 8px;
+            }
+            .speed-menu {
+                display: none;
+                flex-direction: column;
+                gap: 10px;
+                background: rgba(0, 0, 0, 0.7);
+                padding: 10px;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            .speed-menu.show {
+                display: flex;
+            }
+            .speed-menu button {
+                background: rgba(0, 0, 0, 0.5);
+                border: none;
+                color: #fff;
+                padding: 8px 12px;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 14px;
+                opacity: 0.3;
+            }
+            .speed-menu button:hover {
+                background: rgba(0, 0, 0, 0.8);
+                opacity: 0.8;
+            }
+            .speed-menu button.active {
+                background: rgba(255, 255, 255, 0.3);
+                opacity: 0.8;
+            }
+            .loading {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                color: #fff;
+                font-size: 24px;
+                z-index: 10;
+            }
+            .controls {
+                position: absolute;
+                top: 100px;
+                width: 100%;
+                display: flex;
+                justify-content: space-between;
+                padding: 0 20px;
+                box-sizing: border-box;
+                color: #fff;
+                opacity: 0.2;
+                z-index: 10;
+            }
+            .control-btn {
+                font-size: 45px;
+                width: 70px;
+                height: 70px;
+                border: none;
+                border-radius: 50%;
+                background-color: white;
+                color: white;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: background-color 0.3s, transform 0.2s, opacity 0.3s;
+            }
+            .control-btn:hover {
+                background-color: rgb(133, 196, 39);
+                transform: scale(1.15);
+                opacity: 0.8;
+            }
+            .control-btn:active {
+                transform: scale(0.95);
+                opacity: 1;
+            }
+            .arrow {
+                font-size: 90px;
+                color: #1e40af;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="video-container">
+            <div class="controls">
+                <button class="control-btn" onclick="prevVideo()">⬅️</button>
+                <button class="control-btn" onclick="nextVideo()">➡️</button>
+            </div>
+            <video id="videoPlayer" controls autoplay>
+                <source src="" type="video/mp4" />
+                Your browser does not support the video tag.
+            </video>
+            <div class="video-title" id="videoTitle"></div>
+            <div class="speed-controls" id="speedControls">
+                <button onclick="setPlaybackSpeed(4)">x4</button>
+                <button class="skip-button" onclick="skipForward()">+10s</button>
+                <button onclick="setPlaybackSpeed(1)">x1</button>
+                <button class="gear-button" onclick="toggleSpeedMenu()">⚙️</button>
+                <button class="random-button" onclick="randomVideo()">🔄Video Khác🔄</button>
+                <div class="speed-menu" id="speedMenu">
+                    <button onclick="setPlaybackSpeed(2)">x2</button>
+                    <button onclick="setPlaybackSpeed(3)">x3</button>
+                    <button onclick="setPlaybackSpeed(6)">x6</button>
+                    <button onclick="setPlaybackSpeed(8)">x8</button>
+                    <button onclick="setPlaybackSpeed(12)">x12</button>
+                </div>
+            </div>
+            <div class="loading" id="loading">Đang tải...</div>
+        </div>
+        <script>
+            let videoList = [];
+            let currentVideoIndex = 0;
+            const videoPlayer = document.getElementById("videoPlayer");
+            const videoTitle = document.getElementById("videoTitle");
+            const loading = document.getElementById("loading");
+            const speedButtons = document.querySelectorAll(".speed-controls button:not(.skip-button):not(.gear-button):not(.random-button), .speed-menu button");
+            const speedMenu = document.getElementById("speedMenu");
+
+            // Hàm parse CSV thành mảng đối tượng
+            function parseCSV(csvText) {
+                const lines = csvText.trim().split("\n");
+                const headers = lines[0].split(",").map((header) => header.trim());
+                const urlIndex = headers.indexOf("url");
+                const titleIndex = headers.indexOf("title");
+                const result = [];
+                for (let i = 1; i < lines.length; i++) {
+                    const cols = lines[i].split(",").map((col) => col.trim());
+                    if (cols[urlIndex] && cols[titleIndex]) {
+                        result.push({
+                            url: cols[urlIndex],
+                            title: cols[titleIndex],
+                        });
+                    }
+                }
+                return result;
+            }
+
+            // Hàm lưu chỉ số video hiện tại vào localStorage
+            function saveVideoIndex(index) {
+                localStorage.setItem("lastVideoIndex", index);
+            }
+
+            // Hàm lấy chỉ số video cuối cùng từ localStorage
+            function getLastVideoIndex() {
+                const savedIndex = localStorage.getItem("lastVideoIndex");
+                return savedIndex !== null ? parseInt(savedIndex) : 0;
+            }
+
+            // Hàm lưu tốc độ phát vào localStorage
+            function savePlaybackSpeed(speed) {
+                localStorage.setItem("playbackSpeed", speed);
+            }
+
+            // Hàm lấy tốc độ phát từ localStorage
+            function getSavedPlaybackSpeed() {
+                const savedSpeed = localStorage.getItem("playbackSpeed");
+                return savedSpeed !== null ? parseFloat(savedSpeed) : 1;
+            }
+
+            // Hàm hiển thị/ẩn menu tốc độ
+            function toggleSpeedMenu() {
+                speedMenu.classList.toggle("show");
+            }
+
+            // Hàm thiết lập tốc độ phát
+            function setPlaybackSpeed(speed) {
+                if (videoPlayer.playbackRate === speed) {
+                    videoPlayer.playbackRate = 1;
+                    savePlaybackSpeed(1);
+                    speedButtons.forEach((button) => button.classList.remove("active"));
+                } else {
+                    videoPlayer.playbackRate = speed;
+                    savePlaybackSpeed(speed);
+                    speedButtons.forEach((button) => {
+                        button.classList.remove("active");
+                        if (button.textContent === `x${speed}`) {
+                            button.classList.add("active");
+                        }
+                    });
+                }
+                speedMenu.classList.remove("show");
+            }
+
+            // Hàm tua nhanh 10 giây
+            function skipForward() {
+                videoPlayer.currentTime += 10;
+            }
+
+            // Hàm phát video hiện tại
+            function playVideo(index) {
+                if (index >= 0 && index < videoList.length) {
+                    videoPlayer.src = videoList[index].url;
+                    videoPlayer.currentTime = 0;
+                    videoTitle.textContent = videoList[index].title;
+                    currentVideoIndex = index;
+                    saveVideoIndex(index);
+                    videoPlayer.onloadedmetadata = () => {
+                        const duration = videoPlayer.duration / 60;
+                        let defaultSpeed = getSavedPlaybackSpeed();
+                        if (duration < 2) {
+                            defaultSpeed = 1;
+                        } else if (duration > 10 && defaultSpeed < 4) {
+                            defaultSpeed = 1;
+                        } else if (duration > 5 && defaultSpeed < 2) {
+                            defaultSpeed = 1;
+                        }
+                        setPlaybackSpeed(defaultSpeed);
+                    };
+                    const playPromise = videoPlayer.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch((error) => {
+                            console.error("Autoplay failed:", error);
+                            loading.textContent = "Vui lòng nhấn vào video để phát";
+                        });
+                    }
+                }
+            }
+
+            // Hàm chọn và phát video ngẫu nhiên
+            function randomVideo() {
+                if (videoList.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * videoList.length);
+                    playVideo(randomIndex);
+                }
+            }
+
+            // Tải file CSV
+            fetch("./data.csv")
+                .then((response) => {
+                    if (!response.ok) throw new Error("Không thể tải file CSV");
+                    return response.text();
+                })
+                .then((data) => {
+                    videoList = parseCSV(data);
+                    loading.style.display = "none";
+                    if (videoList.length > 0) {
+                        currentVideoIndex = getLastVideoIndex();
+                        if (currentVideoIndex >= videoList.length) {
+                            currentVideoIndex = 0;
+                        }
+                        playVideo(currentVideoIndex);
+                    } else {
+                        loading.textContent = "Không tìm thấy video trong danh sách";
+                    }
+                })
+                .catch((error) => {
+                    console.error("Lỗi tải CSV:", error);
+                    loading.textContent = "Lỗi tải danh sách video";
+                });
+
+            // Chuyển đến video tiếp theo
+            function nextVideo() {
+                if (currentVideoIndex < videoList.length - 1) {
+                    playVideo(currentVideoIndex + 1);
+                } else {
+                    playVideo(0);
+                }
+            }
+
+            // Chuyển đến video trước đó     
+            function prevVideo() {
+                if (currentVideoIndex > 0) {
+                    playVideo(currentVideoIndex - 1);
+                } else {
+                    playVideo(videoList.length - 1);
+                }
+            }
+
+            // Phát lại video khi kết thúc
+            videoPlayer.addEventListener("ended", () => {
+                videoPlayer.currentTime = 0;
+                videoPlayer.play();
+            });
+
+            // Vuốt để chuyển video
+            let touchStartY = 0;
+            window.addEventListener("touchstart", (e) => {
+                touchStartY = e.touches[0].clientY;
+            });
+            window.addEventListener("touchend", (e) => {
+                const touchEndY = e.changedTouches[0].clientY;
+                if (touchStartY - touchEndY > 50) {
+                    nextVideo();
+                } else if (touchEndY - touchStartY > 50) {
+                    prevVideo();
+                }
+            });
+        </script>
+    </body>
+</html>
